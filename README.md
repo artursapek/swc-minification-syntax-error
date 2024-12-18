@@ -32,3 +32,9 @@ https://github.com/axios/axios/blob/db44d339f03f041571ea01b09a4c03b28bbe7abe/lib
 In both cases, functions are being called with unnamed parameters and SWC appears to assign these params to a name `T` in the same scope! This leads to a syntax error.
 
 This looks like a bug with how SWC handles unnamed parameters.
+
+## Remediation
+
+I have observed that overriding the version of `axios` in `@wormhole-foundation/wormhole-connect` to a lower version like `1.4`, and rebuilding that package, resolves this error.
+
+You can see that by installing `npm i ./wormhole-connect-with-lower-axios-version.tgz` and rebuilding. This resolves the syntax error.
