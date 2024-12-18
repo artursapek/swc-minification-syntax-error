@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SWC minification bug
 
-## Getting Started
+This repo reliably reproduces what seems to be a bug with SWC minifcation. It's a default `create-next-app` bootstrapped project, with `@wormhole-foundation/wormhole-connect` imported.
 
-First, run the development server:
+SWC fails to minify Wormhole Connect and produces a syntax error. Simply run `npm install` then `npm run build` and you will see this output:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+> next build
+
+   ▲ Next.js 15.1.1
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+ ✓ Linting and checking validity of types
+   Collecting page data  ..SyntaxError: Identifier 'T' has already been declared
+    at <unknown> (.next/server/app/page.js:1)
+
+> Build error occurred
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+There are two hoisted variables `T`. I ran this chunk through `prettier` and used tree-sitter to find where `T` is referenced
+and there are two places, both coming from `axios`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+![](./syntax_error.png)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The corresponding source code is here:
 
-## Learn More
+https://github.com/axios/axios/blob/db44d339f03f041571ea01b09a4c03b28bbe7abe/lib/adapters/fetch.js#L16
 
-To learn more about Next.js, take a look at the following resources:
+https://github.com/axios/axios/blob/db44d339f03f041571ea01b09a4c03b28bbe7abe/lib/utils.js#L680-L695
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+In both cases, functions are being called with unnamed parameters and SWC appears to assign these params to a name `T` in the same scope! This leads to a syntax error.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This looks like a bug with how SWC handles unnamed parameters.
